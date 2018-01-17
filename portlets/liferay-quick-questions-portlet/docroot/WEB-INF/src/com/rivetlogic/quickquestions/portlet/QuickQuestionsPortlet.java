@@ -13,6 +13,7 @@ import com.liferay.portal.kernel.util.StreamUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
+import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.security.permission.ActionKeys;
 import com.liferay.portal.security.permission.PermissionChecker;
 import com.liferay.portal.service.ServiceContext;
@@ -24,10 +25,7 @@ import com.liferay.portlet.messageboards.model.MBCategory;
 import com.liferay.portlet.messageboards.model.MBMessage;
 import com.liferay.portlet.messageboards.model.MBMessageConstants;
 import com.liferay.portlet.messageboards.model.MBThread;
-import com.liferay.portlet.messageboards.service.MBCategoryServiceUtil;
-import com.liferay.portlet.messageboards.service.MBMessageServiceUtil;
-import com.liferay.portlet.messageboards.service.MBThreadLocalServiceUtil;
-import com.liferay.portlet.messageboards.service.MBThreadServiceUtil;
+import com.liferay.portlet.messageboards.service.*;
 import com.liferay.util.bridges.mvc.MVCPortlet;
 import com.rivetlogic.quickquestions.model.permissions.MBMessagePermission;
 
@@ -330,18 +328,34 @@ public class QuickQuestionsPortlet extends MVCPortlet {
 		
 
 		try{
-			
-			MBMessageServiceUtil.deleteMessage(messageId);
-			
+
+		    MBMessage messageToBeDeleted = MBMessageServiceUtil.getMessage(messageId);
+
+            if(parentMessageId == 0) {
+                // message is a root message
+                // remove all thread messages
+                List<MBMessage> threadMessages = MBMessageLocalServiceUtil.getThreadMessages(messageToBeDeleted.getThreadId(), WorkflowConstants.STATUS_APPROVED);
+
+                for(MBMessage message : threadMessages) {
+                    MBMessageServiceUtil.deleteMessage(message.getMessageId());
+                }
+
+            } else {
+                // Message is not a root message
+                MBMessageServiceUtil.deleteMessage(messageId);
+            }
+
+
 //			if(parentMessageId > 0){
 //				response.setRenderParameter("messageId", String.valueOf(parentMessageId));
 //				response.setRenderParameter("targetPage", "view_question");
 //			}else{
 //				response.setRenderParameter("targetPage", "view_main");
 //			}
-			
-			
-		}catch(Exception e){
+
+            SessionMessages.add(actionRequest, "message-delete-success");
+
+        }catch(Exception e){
 			SessionErrors.add(actionRequest, e.getClass());
 			SessionMessages.add(actionRequest, PortalUtil.getPortletId(actionRequest) + SessionMessages.KEY_SUFFIX_HIDE_DEFAULT_ERROR_MESSAGE);
 			//response.setRenderParameter("messageId", String.valueOf(messageId));
@@ -349,7 +363,6 @@ public class QuickQuestionsPortlet extends MVCPortlet {
 			throw e;
 		}
 		
-		SessionMessages.add(actionRequest, "message-delete-success");
 		sendRedirect(actionRequest, response);
 	}
 
