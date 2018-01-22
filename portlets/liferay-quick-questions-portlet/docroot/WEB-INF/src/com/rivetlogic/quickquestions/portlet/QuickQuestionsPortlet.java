@@ -320,46 +320,35 @@ public class QuickQuestionsPortlet extends MVCPortlet {
         }
 		actionResponse.sendRedirect(redirect);
 	}
-	
-	
+
+
+    /**
+     * Deletes a Message or Thread if the message is root
+     * @param actionRequest
+     * @param response
+     * @throws Exception
+     */
 	public void deleteMessage(ActionRequest actionRequest,ActionResponse response) throws Exception {
 		long messageId = ParamUtil.getLong(actionRequest, "messageId");
 		long parentMessageId = ParamUtil.getLong(actionRequest, "parentMessageId");
-		
 
-		try{
+		try {
 
-		    MBMessage messageToBeDeleted = MBMessageServiceUtil.getMessage(messageId);
-
-            if(parentMessageId == 0) {
-                // message is a root message
-                // remove all thread messages
-                List<MBMessage> threadMessages = MBMessageLocalServiceUtil.getThreadMessages(messageToBeDeleted.getThreadId(), WorkflowConstants.STATUS_APPROVED);
-
-                for(MBMessage message : threadMessages) {
-                    MBMessageServiceUtil.deleteMessage(message.getMessageId());
-                }
-
-            } else {
-                // Message is not a root message
+            if(parentMessageId != 0) {
+                // message IS NOT root
                 MBMessageServiceUtil.deleteMessage(messageId);
+            } else {
+                // message is the root message -> delete thread
+                MBMessage messageToBeDeleted = MBMessageServiceUtil.getMessage(messageId);
+                MBThreadLocalServiceUtil.deleteThread(messageToBeDeleted.getThreadId());
             }
-
-
-//			if(parentMessageId > 0){
-//				response.setRenderParameter("messageId", String.valueOf(parentMessageId));
-//				response.setRenderParameter("targetPage", "view_question");
-//			}else{
-//				response.setRenderParameter("targetPage", "view_main");
-//			}
 
             SessionMessages.add(actionRequest, "message-delete-success");
 
         }catch(Exception e){
 			SessionErrors.add(actionRequest, e.getClass());
 			SessionMessages.add(actionRequest, PortalUtil.getPortletId(actionRequest) + SessionMessages.KEY_SUFFIX_HIDE_DEFAULT_ERROR_MESSAGE);
-			//response.setRenderParameter("messageId", String.valueOf(messageId));
-			//response.setRenderParameter("targetPage", "view_question");
+
 			throw e;
 		}
 		
